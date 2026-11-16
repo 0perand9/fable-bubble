@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import qs.core
+import qs.widgets
 import qs.plugins.bubble
 import "BubbleLogic.js" as B
 
@@ -15,12 +16,12 @@ import "BubbleLogic.js" as B
 //
 // From lukpednoi's Anserin (https://github.com/lukpednoi/Anserin,
 // AGPL-3.0-or-later): InfoPanel, InfoPage and the pieces they draw with in
-// BubbleMonitor.qml at 1909479; sizes follow Fableland's UI scale, and the
-// full-screen variant is gone.
+// BubbleMonitor.qml at 1909479; sizes follow Fableland's UI scale.
 Rectangle {
     id: panel
 
     readonly property var d: Monitor.info
+    readonly property bool big: Monitor.full     // full screen: taller charts, whole lists
     property var oldD: null
     property bool flip: false            // which page is the live one
     property string lastKey: ""
@@ -85,11 +86,10 @@ Rectangle {
 
         Behavior on color { ColorAnimation { duration: 140 } }
 
-        Text {
+        Icon {
             anchors.centerIn: parent
-            text: "󰅖"
-            font.family: Theme.iconFont
-            font.pixelSize: Theme.px(14)
+            text: Icons.close
+            size: 14
             color: Look.text
         }
 
@@ -184,7 +184,7 @@ Rectangle {
 
                 Rectangle {
                     width: parent.width
-                    height: Theme.px(80)
+                    height: Theme.px(panel.big ? 96 : 72)
                     radius: Theme.px(12)
                     color: Qt.alpha(Monitor.fg, 0.06)
 
@@ -218,7 +218,7 @@ Rectangle {
 
                             Rectangle {
                                 width: parent.width
-                                height: Theme.px(34)
+                                height: Theme.px(40)
                                 radius: Theme.px(6)
                                 color: Qt.alpha(Monitor.fg, 0.08)
 
@@ -234,7 +234,7 @@ Rectangle {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 target: String(Math.round(parent.v))
                                 font.family: Look.font
-                                font.pixelSize: Theme.px(10)
+                                font.pixelSize: Theme.px(11)
                                 color: Qt.alpha(Monitor.fg, 0.7)
                             }
                         }
@@ -362,7 +362,7 @@ Rectangle {
                 readonly property var lines: io && io.up.length > 2 ? B.twoWay(io.up, io.down, Monitor.phase, width - Theme.px(12), height, io.maxUp, io.maxDown, 40) : null
 
                 width: parent ? parent.width : 0
-                height: Theme.px(130)
+                height: Theme.px(panel.big ? 150 : 118)
                 radius: Theme.px(12)
                 color: Qt.alpha(Monitor.fg, 0.06)
                 clip: true
@@ -471,12 +471,12 @@ Rectangle {
         Rectangle { x: -Theme.px(4); y: x; width: Theme.px(8); height: width; radius: width / 2; color: dot.color }
     }
 
-    // a list on a page: its heading and rows (as many as fit, `list.panel`)
+    // a list on a page: its heading and rows (in the popup as many as fit, `list.panel`)
     component InfoList: Column {
         id: infoList
 
         property var list: null
-        readonly property var rows: !list ? [] : list.panel ? list.rows.slice(0, list.panel) : list.rows
+        readonly property var rows: !list ? [] : list.panel && !panel.big ? list.rows.slice(0, list.panel) : list.rows
 
         visible: rows.length > 0
         width: parent.width

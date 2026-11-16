@@ -22,8 +22,8 @@ Item {
         id: space
 
         // how far the world's centre is from the view's: the background's centre follows it (a part of it)
-        readonly property real panX: Monitor.camX + Monitor.world.w / 2 * Monitor.camZ - field.width / 2
-        readonly property real panY: Monitor.camY + Monitor.world.h / 2 * Monitor.camZ - field.height / 2
+        readonly property real panX: Monitor.camX + Monitor.worldW / 2 * Monitor.camZ - field.width / 2
+        readonly property real panY: Monitor.camY + Monitor.worldH / 2 * Monitor.camZ - field.height / 2
         readonly property real zoomT: (Monitor.camZ - Monitor.zoomMin) / (Monitor.zoomMax - Monitor.zoomMin)
 
         anchors.fill: parent
@@ -52,8 +52,8 @@ Item {
 
     // the world, under the camera
     Item {
-        width: Monitor.world.w
-        height: Monitor.world.h
+        width: Monitor.worldW
+        height: Monitor.worldH
         transform: [
             Scale { xScale: Monitor.camZ; yScale: Monitor.camZ },
             Translate { x: Monitor.camX; y: Monitor.camY }
@@ -161,13 +161,14 @@ Item {
     }
 
     // a layer of stars that repeats for ever, moved by `depth` of the camera's pan and grown by up to `grow` with the zoom
+    // (and, as everything, with the UI's scale)
     component StarLayer: Item {
         id: layer
 
         property url source
         property real depth: 0.2
         property real grow: 0.1
-        readonly property real k: 1 - layer.grow / 2 + layer.grow * space.zoomT
+        readonly property real k: (1 - layer.grow / 2 + layer.grow * space.zoomT) * Monitor.zoomMax
         readonly property real tile: 512
 
         anchors.fill: parent

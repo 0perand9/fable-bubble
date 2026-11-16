@@ -8,25 +8,27 @@ import "BubbleLogic.js" as B
 
 // What the Bubble monitor shows and how it moves: the snapshots of the
 // `bubble` topic (src/lib.rs), the world of bubbles and its physics, the
-// camera, the open bubble and the facts of its page. The popup (Popup.qml)
-// only draws this. It lives outside the popup, so reopening it finds the
-// bubbles where they were; it samples and moves only while `active`.
+// camera, the open bubble and the facts of its page. The page (Page.qml) only
+// draws this. It lives outside the popup, so reopening it finds the bubbles
+// where they were; it samples and moves only while `active`.
 //
 // From lukpednoi's Anserin (https://github.com/lukpednoi/Anserin,
 // AGPL-3.0-or-later): the script of src/quickshell/blankpanel/pages/
 // BubbleMonitor.qml at 1909479, itself descended from ilyamiro's Serpantinum.
 // Changed for Fableland: the data comes from the daemon instead of a Python
 // feed; the state moved out of the page into this singleton; the camera's zoom
-// is measured in Fableland's UI scale; "both" replaces the full-screen view as
-// the way to see processes and apps together; the full-screen mode is gone.
+// is measured in Fableland's UI scale.
 Singleton {
     id: root
 
-    // ---------- the popup tells ----------
+    // ---------- the popup and its page tell ----------
     property bool active: false        // the popup is open
     property real viewW: 1             // the field's size, real pixels
     property real viewH: 1
     property real cardW: 1             // the width of an open bubble's page, on the left
+    // Full screen (FullScreen.qml): the bubbles have the whole screen at 50 %,
+    // processes and apps together.
+    property bool full: false
 
     // ---------- config (as the design's main.js) ----------
     readonly property int tickMs: 1000
@@ -43,6 +45,8 @@ Singleton {
 
     // ---------- state ----------
     property var world: new B.World(worldSize.w, worldSize.h, { attract: 0 })     // they drift, nothing pulls
+    property real worldW: worldSize.w      // the world's size, for bindings
+    property real worldH: worldSize.h
     property real bumpAt: 0
     property var ms: ({
         snap: null, lastTick: Date.now(),
@@ -56,6 +60,7 @@ Singleton {
     property real camY: 0
     property real camZ: 0.7 * Theme.scale
     property bool camReady: false
+    property var camHome: null           // the camera in the popup, kept while full screen
     property int tick: 0                 // bumped every frame; what the bubbles redraw by
     property real clock: 0
     // what the dials and the pages show (set each frame)
@@ -65,10 +70,11 @@ Singleton {
     property real vTotal: 8
     property real vDisk: 0                   // the drives' used share
     property var battery: null               // { pct, plugged } (none without a battery)
-    // What the field shows besides the dials: the busiest processes, the open apps, or both.
+    // What the field shows besides the dials: in the popup either the busiest
+    // processes or the open apps (the switch top left); full screen, both.
     property string mode: "procs"
-    readonly property bool showProcs: mode !== "apps"
-    readonly property bool showApps: mode !== "procs"
+    readonly property bool showProcs: mode === "procs" || full
+    readonly property bool showApps: mode === "apps" || full
     onShowProcsChanged: refill()
     onShowAppsChanged: refill()
     // The open bubble's page (details()), worked out again four times a second
@@ -246,6 +252,44 @@ Singleton {
         ms.camT = { x: p.x - wx * z1, y: p.y - wy * z1, z: z1 };
     }
 
+    // ---------- full screen ----------
+    // The world's size. Growing, the bubbles keep their places round the
+    // middle; shrinking, their places scale down with it (none is cut off at a
+    // wall), and a few quick steps part the ones that came too close.
+    function resizeWorld(w, h) {
+        const w0 = world.w, h0 = world.h, grow = w >= w0;
+        for (const n of world.nodes) {
+            if (grow) { n.x += (w - w0) / 2; n.y += (h - h0) / 2; }
+            else { n.x *= w / w0; n.y *= h / h0; }
+        }
+        worldW = w; worldH = h;
+        world.w = w; world.h = h;
+        ms.camT = null; ms.camBack = null; ms.press = null; ms.pan = null; world.dragTarget = null;
+        if (!grow) for (let i = 0; i < 8; i++) world.step(0.016, Date.now());
+    }
+    // Full screen begins: processes and apps both show from now on.
+    function goFull() {
+        camHome = { x: camX, y: camY, z: camZ };
+        full = true;
+    }
+    // The page has a whole screen of w × h: the world grows to fill it at 50 %.
+    function spread(w, h) {
+        const z = 0.5 * Theme.scale;
+        resizeWorld(w / z, h / z);
+        camX = 0; camY = 0; camZ = z;
+    }
+    // The page is the popup's size again: the world's own size, the camera where it was.
+    function gather() {
+        resizeWorld(worldSize.w, worldSize.h);
+        camX = camHome.x; camY = camHome.y; camZ = camHome.z;
+    }
+    // Full screen is over, wherever it had got to.
+    function quitFull() {
+        if (!full) return;
+        if (worldW !== worldSize.w || worldH !== worldSize.h) gather();
+        full = false;
+    }
+
     // ---------- holding and opening ----------
     function grab() {
         const p = ms.press; if (!p) return;
@@ -366,7 +410,8 @@ Singleton {
 
     // Everything a bubble's page shows, the same order for each: title and a
     // line under it, the number, how it looks (a chart, bars or a gauge), facts
-    // in two columns and lists (`panel`: how many rows fit).
+    // in two columns and lists (`panel`: how many rows fit the popup's page;
+    // full screen shows them all).
     function details(n, now) {
         const st = ms, kind = kindOf(n);
         const phase = B.clamp((now - st.lastTick) / tickMs, 0, 1);
