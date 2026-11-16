@@ -1,0 +1,10 @@
+{
+  "name": "bubble",
+  "title": "Bubble",
+  "icon": "󰐾",
+  "about": "This machine as bubbles drifting in space: dials, the busiest processes and the open apps (from lukpednoi's Anserin).",
+  "version": "1.0.0",
+  "shell": {
+    "popup": "Popup.qml"
+  }
+}

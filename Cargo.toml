@@ -1,0 +1,9 @@
+[package]
+name = "fable-bubble"
+version = "1.0.0"
+edition.workspace = true
+description = "Fableland plugin: the machine as bubbles drifting in space"
+license = "AGPL-3.0-or-later"
+
+[dependencies]
+fable-plugin.workspace = true
